@@ -166,8 +166,13 @@ def _is_ollama_native_url(url: str) -> bool:
     path = (parsed.path or "").rstrip("/")
     if _host_match(url, "ollama.com"):
         return True
-    local_ollama_host = host in {"localhost", "127.0.0.1", "0.0.0.0", "::1"} or parsed.port == 11434
-    return local_ollama_host and (path == "/api" or path.startswith("/api/"))
+    # Port 11434 is the canonical Ollama port — any /api/ path on it is native Ollama.
+    if parsed.port == 11434:
+        return path == "/api" or path.startswith("/api/")
+    # For non-standard ports on loopback, only match the bare /api root to avoid
+    # misidentifying other local services (e.g. AnythingLLM at /api/v1/openai).
+    local_host = host in {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
+    return local_host and path == "/api"
 
 
 def _ollama_api_root(url: str) -> str:

@@ -707,6 +707,7 @@ async def execute_tool_block(
         do_manage_contact,
         do_vault_search, do_vault_get, do_vault_unlock,
         do_app_api,
+        do_recognize_face, do_enroll_face,
     )
 
     tool = block.tool_type
@@ -894,6 +895,12 @@ async def execute_tool_block(
     elif tool == "edit_image":
         desc = "edit_image"
         result = await do_edit_image(content, owner=owner)
+    elif tool == "recognize_face":
+        desc = "recognize_face"
+        result = await do_recognize_face(content, owner=owner)
+    elif tool == "enroll_face":
+        desc = "enroll_face"
+        result = await do_enroll_face(content, owner=owner)
     elif tool == "trigger_research":
         desc = "trigger_research"
         result = await do_trigger_research(content, owner=owner)

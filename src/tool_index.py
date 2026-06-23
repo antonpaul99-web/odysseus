@@ -118,6 +118,8 @@ BUILTIN_TOOL_DESCRIPTIONS: Dict[str, str] = {
     "app_api": "Generic loopback to ANY Odysseus internal endpoint. Use this when the user wants something the UI can do but there's no named tool for it. Covers calendar, gallery, library/documents, memory, notes, tasks, settings, research, compare, cookbook GPUs/state — every UI button hits some /api/* endpoint and you can hit it too. action='endpoints' with filter=<keyword> lists available endpoints. action='call' takes method+path+body. Hits same routes the UI uses — auth flows free. NOTE: themes are NOT an API endpoint — use the ui_control tool (create_theme / set_theme), not app_api. SESSIONS/CHATS: do NOT use app_api for these — GET /api/sessions returns EMPTY for tool calls (it's owner-filtered and tool calls authenticate as a different identity). EMAIL ACCOUNTS: do NOT use /api/email/accounts via app_api; use list_email_accounts, list_emails, and read_email instead. To list/rename/archive/delete/fork chats use the list_sessions and manage_session tools instead.",
     "edit_image": "Edit an image in the gallery: upscale (increase resolution), remove background (rembg), inpaint (fill selected area), or harmonize (blend edits). Specify image ID and action.",
     "trigger_research": "Start a deep research job on any topic — appears in the Deep Research sidebar, streams progress, produces a detailed report. Use for 'research X', 'look into Y', 'do deep research on Z', 'investigate'. NOT a scheduled task — it runs now and surfaces in the sidebar.",
+    "recognize_face": "Identify who's in a gallery photo by matching detected faces against everyone enrolled via enroll_face. Use for 'who is this' / 'is X in this photo'. Requires the optional face-recognition dependency on the server.",
+    "enroll_face": "Enroll a named person's face from a gallery photo so recognize_face can identify them later. Calling it again for the same name adds another sample instead of replacing the old one.",
 }
 
 
@@ -337,6 +339,12 @@ class ToolIndex:
                    "deep dive", "deep research", "find out about", "study up on",
                    "report on", "do research", "look up everything"}):
             {"trigger_research"},
+        # Face recognition intent — "who is this", "enroll this face".
+        frozenset({"who is this", "who's this", "who is in this photo",
+                   "recognize this face", "recognize the face", "enroll this face",
+                   "enroll a face", "is this", "identify this person",
+                   "who's in this picture"}):
+            {"recognize_face", "enroll_face"},
         # Settings-change intent — "change my…/set my…/use X for…/turn on…".
         frozenset({"change my", "set my", "use the voice", "change the voice",
                    "my voice", "tts voice", "search engine", "default model",

@@ -578,6 +578,8 @@ def setup_chat_routes(
                 disabled_tools.add("generate_image")
             if not _privs.get("can_manage_memory", True):
                 disabled_tools.update({"manage_memory", "manage_skills"})
+            if not _privs.get("can_manage_faces", True):
+                disabled_tools.update({"recognize_face", "enroll_face"})
             if not _privs.get("can_use_research", True):
                 _research_flags["do"] = False
             if not _privs.get("can_use_agent", True):

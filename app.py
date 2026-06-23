@@ -594,6 +594,13 @@ from routes.stt_routes import setup_stt_routes
 app.include_router(setup_stt_routes(stt_service))
 logger.info("STT service initialized (provider managed via settings)")
 
+# Faces (enroll/recognize, on-demand only — no camera/worker)
+from services.faces import get_face_service
+face_service = get_face_service()
+from routes.face_routes import setup_face_routes
+app.include_router(setup_face_routes(face_service))
+logger.info("Face service initialized (enroll/recognize via /api/faces)")
+
 # Documents (artifacts/canvas)
 from routes.document_routes import setup_document_routes
 app.include_router(setup_document_routes(session_manager, upload_handler))

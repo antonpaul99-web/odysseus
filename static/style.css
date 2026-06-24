@@ -35407,3 +35407,225 @@ body.theme-frosted .modal {
      is already ≥16px and never zoomed — leave it so we don't shrink it. */
   .doc-email-richbody.doc-font-m { font-size: 16px !important; }
 }
+/* ============================================ */
+/* Jarvis Mode — full-screen voice-first view   */
+/* ============================================ */
+
+.jarvis-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.jarvis-overlay.jarvis-open {
+  opacity: 1;
+}
+.jarvis-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: var(--fg);
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.jarvis-close:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+
+.jarvis-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  max-width: min(640px, 90vw);
+  padding: 24px;
+}
+
+.jarvis-orb {
+  --jarvis-color: var(--color-accent);
+  position: relative;
+  width: 220px;
+  height: 220px;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.jarvis-orb-core,
+.jarvis-orb-ring {
+  grid-area: 1 / 1;
+  border-radius: 50%;
+}
+.jarvis-orb-core {
+  width: 96px;
+  height: 96px;
+  background: radial-gradient(circle at 35% 30%,
+    color-mix(in srgb, var(--jarvis-color) 90%, white 10%),
+    var(--jarvis-color) 70%);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--jarvis-color) 55%, transparent);
+  animation: jarvis-breathe 3s ease-in-out infinite;
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+.jarvis-orb-ring {
+  width: 160px;
+  height: 160px;
+  border: 1.5px solid var(--jarvis-color);
+  opacity: 0;
+  transition: border-color 0.4s ease;
+}
+.jarvis-orb-ring-2 {
+  width: 220px;
+  height: 220px;
+}
+
+/* idle — slow breathing core, rings hidden */
+.jarvis-orb[data-state="idle"] .jarvis-orb-core {
+  animation: jarvis-breathe 3s ease-in-out infinite;
+}
+
+/* listening — faster pulse + outward ripple rings, recording-red tint */
+.jarvis-orb[data-state="listening"] {
+  --jarvis-color: var(--color-recording);
+}
+.jarvis-orb[data-state="listening"] .jarvis-orb-core {
+  animation: jarvis-pulse-fast 1.1s ease-in-out infinite;
+}
+.jarvis-orb[data-state="listening"] .jarvis-orb-ring {
+  animation: jarvis-ripple 1.8s ease-out infinite;
+}
+.jarvis-orb[data-state="listening"] .jarvis-orb-ring-2 {
+  animation-delay: 0.5s;
+}
+
+/* thinking — neutral rotating ring, core idle-pulsing */
+.jarvis-orb[data-state="thinking"] .jarvis-orb-core {
+  animation: jarvis-breathe 1.4s ease-in-out infinite;
+}
+.jarvis-orb[data-state="thinking"] .jarvis-orb-ring-1 {
+  opacity: 0.8;
+  border-style: dashed;
+  animation: jarvis-spin 2.2s linear infinite;
+}
+
+/* speaking — rhythmic pulse, success-green tint */
+.jarvis-orb[data-state="speaking"] {
+  --jarvis-color: var(--green);
+}
+.jarvis-orb[data-state="speaking"] .jarvis-orb-core {
+  animation: jarvis-pulse-fast 0.7s ease-in-out infinite;
+}
+.jarvis-orb[data-state="speaking"] .jarvis-orb-ring {
+  opacity: 0.5;
+  animation: jarvis-pulse-fast 0.7s ease-in-out infinite;
+}
+
+@keyframes jarvis-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+@keyframes jarvis-pulse-fast {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.16); }
+}
+@keyframes jarvis-ripple {
+  0% { transform: scale(0.6); opacity: 0.55; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+@keyframes jarvis-spin {
+  to { transform: rotate(360deg); }
+}
+
+.jarvis-caption {
+  min-height: 1.4em;
+  color: var(--fg);
+  opacity: 0.65;
+  font-size: 14px;
+  text-align: center;
+}
+
+.jarvis-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-height: 32vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.jarvis-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: jarvis-line-in 0.2s ease;
+}
+.jarvis-line-who {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+.jarvis-line-you .jarvis-line-who { color: var(--color-recording); }
+.jarvis-line-jarvis .jarvis-line-who { color: var(--green); }
+.jarvis-line-text {
+  font-size: 17px;
+  line-height: 1.4;
+  color: var(--fg);
+}
+@keyframes jarvis-line-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.jarvis-fallback-form {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, 80vw);
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+.jarvis-fallback-form:focus-within {
+  opacity: 1;
+}
+.jarvis-fallback-input {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--fg);
+  padding: 8px 16px;
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+}
+.jarvis-fallback-input:focus {
+  border-color: var(--color-accent);
+}
+
+@media (max-width: 600px) {
+  .jarvis-orb { width: 160px; height: 160px; }
+  .jarvis-orb-core { width: 72px; height: 72px; }
+  .jarvis-orb-ring { width: 116px; height: 116px; }
+  .jarvis-orb-ring-2 { width: 160px; height: 160px; }
+  .jarvis-line-text { font-size: 15px; }
+}

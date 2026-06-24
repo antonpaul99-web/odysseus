@@ -39,6 +39,7 @@ import cookbookModule from './js/cookbook.js';
 import groupModule from './js/group.js';
 import * as researchPanelModule from './js/research/panel.js';
 import ttsModule from './js/tts-ai.js';
+import jarvisModeModule from './js/jarvisMode.js';
 import spinnerModule from './js/spinner.js';
 import { initKeyboardShortcuts } from './js/keyboard-shortcuts.js';
 import { initSidebarLayout, syncRailSide } from './js/sidebar-layout.js';
@@ -1504,6 +1505,14 @@ function initializeEventListeners() {
       memoryModal.classList.remove('hidden');
       if (memoryModule && memoryModule.renderMemoryList) memoryModule.renderMemoryList();
       if (memoryModule && memoryModule.updateMemoryCount) memoryModule.updateMemoryCount();
+    });
+  }
+
+  // Sidebar Jarvis Mode button
+  const toolJarvisBtn = el('tool-jarvis-btn');
+  if (toolJarvisBtn) {
+    toolJarvisBtn.addEventListener('click', () => {
+      jarvisModeModule.open();
     });
   }
 
@@ -3447,6 +3456,7 @@ function startOdysseusApp() {
     'rail-calendar':  'tool-calendar-btn',
     'rail-notes':     'tool-notes-btn',
     'rail-memory':    'tool-memory-btn',
+    'rail-jarvis':    'tool-jarvis-btn',
     'rail-theme':     'tool-theme-btn',
     'rail-email':     'email-section-title',
   };

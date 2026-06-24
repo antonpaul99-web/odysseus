@@ -863,6 +863,35 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "recognize_face",
+            "description": "Identify who's in a gallery photo by matching detected faces against everyone enrolled via enroll_face. Use for 'who is this' / 'is X in this photo'. Requires the optional face-recognition dependency to be installed on the server — if it isn't, say so rather than guessing.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "image_id": {"type": "string", "description": "Gallery image ID to scan for faces"},
+                },
+                "required": ["image_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "enroll_face",
+            "description": "Enroll a named person's face from a gallery photo, so recognize_face can identify them later. Detects the largest face in the image. Calling this again for the same name adds another sample (improves match accuracy) rather than replacing the old one.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "image_id": {"type": "string", "description": "Gallery image ID containing the person's face"},
+                    "name": {"type": "string", "description": "The person's name to enroll/recognize them as"},
+                },
+                "required": ["image_id", "name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "trigger_research",
             "description": "Start a deep research task on a topic. Returns a task ID for tracking.",
             "parameters": {

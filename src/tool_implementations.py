@@ -4134,3 +4134,96 @@ async def do_vault_unlock(content: str, owner: Optional[str] = None) -> Dict:
         pass
 
     return {"output": "Vault unlocked. Session saved.", "exit_code": 0}
+
+
+# ── Face tools ──
+
+def _read_gallery_image_bytes(image_id: str, owner: Optional[str]) -> Optional[bytes]:
+    """Resolve a gallery image ID to raw bytes, scoped to `owner` like every
+    other gallery route — never read another user's photo just because the
+    agent guessed their image ID."""
+    from pathlib import Path as _Path
+    from core.database import SessionLocal, GalleryImage
+
+    db = SessionLocal()
+    try:
+        img = db.query(GalleryImage).filter(GalleryImage.id == image_id).first()
+        if not img or not owner or img.owner != owner:
+            return None
+        path = _Path("data/generated_images") / img.filename
+        return path.read_bytes() if path.exists() else None
+    finally:
+        db.close()
+
+
+async def do_recognize_face(content: str, owner: Optional[str] = None) -> Dict:
+    """Identify faces in a gallery image against everyone enrolled via enroll_face."""
+    try:
+        args = _parse_tool_args(content)
+    except ValueError:
+        return {"error": "Invalid JSON arguments", "exit_code": 1}
+    image_id = (args.get("image_id") or "").strip()
+    if not image_id:
+        return {"error": "image_id is required", "exit_code": 1}
+
+    image_bytes = _read_gallery_image_bytes(image_id, owner)
+    if image_bytes is None:
+        return {"error": f"Image '{image_id}' not found", "exit_code": 1}
+
+    from services.faces import get_face_service
+    svc = get_face_service()
+    if not svc.available:
+        return {"error": svc.init_error or "Face recognition is not available on this server.", "exit_code": 1}
+
+    try:
+        results = svc.recognize(image_bytes)
+    except ValueError as e:
+        return {"error": str(e), "exit_code": 1}
+    except Exception as e:
+        logger.error(f"recognize_face failed: {e}", exc_info=True)
+        return {"error": f"Recognition failed: {e}", "exit_code": 1}
+
+    if not results:
+        return {"output": "No faces detected in that image.", "faces": [], "exit_code": 0}
+
+    lines = []
+    for r in results:
+        if r["name"]:
+            lines.append(f"- {r['name']} (score {r['score']})")
+        else:
+            lines.append(f"- unrecognized face (best score {r['score']})")
+    return {"output": "\n".join(lines), "faces": results, "exit_code": 0}
+
+
+async def do_enroll_face(content: str, owner: Optional[str] = None) -> Dict:
+    """Enroll a named person's face from a gallery image for later recognize_face calls."""
+    try:
+        args = _parse_tool_args(content)
+    except ValueError:
+        return {"error": "Invalid JSON arguments", "exit_code": 1}
+    image_id = (args.get("image_id") or "").strip()
+    name = (args.get("name") or "").strip()
+    if not image_id or not name:
+        return {"error": "image_id and name are required", "exit_code": 1}
+
+    image_bytes = _read_gallery_image_bytes(image_id, owner)
+    if image_bytes is None:
+        return {"error": f"Image '{image_id}' not found", "exit_code": 1}
+
+    from services.faces import get_face_service
+    svc = get_face_service()
+    if not svc.available:
+        return {"error": svc.init_error or "Face recognition is not available on this server.", "exit_code": 1}
+
+    try:
+        result = svc.enroll(name, image_bytes)
+    except ValueError as e:
+        return {"error": str(e), "exit_code": 1}
+    except Exception as e:
+        logger.error(f"enroll_face failed: {e}", exc_info=True)
+        return {"error": f"Enrollment failed: {e}", "exit_code": 1}
+
+    return {
+        "output": f"Enrolled '{result['name']}' ({result['samples']} sample photo(s) now on file).",
+        "exit_code": 0,
+    }

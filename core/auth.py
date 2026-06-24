@@ -28,6 +28,10 @@ DEFAULT_PRIVILEGES = {
     "can_use_research": True,
     "can_generate_images": True,
     "can_manage_memory": True,
+    # Biometric data (enrolled face embeddings + photos) is more sensitive
+    # than ordinary memory, so default this off — admins still get it via
+    # ADMIN_PRIVILEGES below; non-admins need it explicitly granted.
+    "can_manage_faces": False,
     "max_messages_per_day": 0,
     "allowed_models": [],
 }

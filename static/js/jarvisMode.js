@@ -157,7 +157,20 @@ function _onOrbClick() {
     voiceRecorderModule.stopRecording();
     return;
   }
-  if (_state === 'thinking' || _state === 'speaking') return; // busy
+  if (_state === 'thinking' || _state === 'speaking') {
+    // Barge-in: clicking while Jarvis is still generating or speaking used to
+    // be a silent no-op, which is why a second voice turn could appear to
+    // "not work" — TTS narration alone can run tens of seconds, and clicking
+    // during that window did nothing with zero feedback. Interrupt instead:
+    // stop any TTS playback, cancel an in-flight reply via the same path the
+    // Stop button uses (dispatching Enter while streaming triggers that, not
+    // a send — see chat.js handleChatSubmit), then start listening again.
+    if (window.aiTTSManager) window.aiTTSManager.stop();
+    if (_idleCheckTimer) { clearInterval(_idleCheckTimer); _idleCheckTimer = null; }
+    _sendCurrentInput();
+    _startListening();
+    return;
+  }
   _startListening();
 }
 

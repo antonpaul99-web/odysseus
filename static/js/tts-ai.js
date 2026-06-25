@@ -162,13 +162,62 @@ class AITTSManager {
     }
 
     _findBrowserVoice() {
-        if (!this.browserVoice) return null;
         const voices = window.speechSynthesis.getVoices();
-        const target = this.browserVoice.toLowerCase();
-        // Try exact match first, then partial
-        return voices.find(v => v.name.toLowerCase() === target) ||
-               voices.find(v => v.name.toLowerCase().includes(target)) ||
-               null;
+        if (!voices.length) return null;
+
+        // A manually configured voice name wins if it actually matches
+        // something installed on this device.
+        if (this.browserVoice) {
+            const target = this.browserVoice.toLowerCase();
+            const match = voices.find(v => v.name.toLowerCase() === target) ||
+                          voices.find(v => v.name.toLowerCase().includes(target));
+            if (match) return match;
+        }
+
+        return this._pickClearestVoice(voices);
+    }
+
+    /**
+     * No (matching) manual override — auto-pick the clearest-sounding voice
+     * installed on this device. Browsers don't reliably default to their
+     * best voice: Chrome on Linux, for instance, often defaults to a flat
+     * eSpeak-style voice even when a smoother cloud/neural one is installed
+     * alongside it. Score by name/lang and take the top result so Jarvis
+     * sounds as good as each device allows without per-device configuration.
+     */
+    _pickClearestVoice(voices) {
+        const lang = (navigator.language || 'en-US').toLowerCase();
+        const langPrefix = lang.split('-')[0];
+
+        let best = null;
+        let bestScore = -Infinity;
+        for (const v of voices) {
+            const name = v.name.toLowerCase();
+            const voiceLang = (v.lang || '').toLowerCase();
+            let score = 0;
+
+            if (voiceLang === lang) score += 30;
+            else if (voiceLang.startsWith(langPrefix)) score += 15;
+            else score -= 20;
+
+            // Reward known smooth/neural-quality voices and quality markers.
+            if (/natural|neural|enhanced|premium/.test(name)) score += 25;
+            if (/online/.test(name)) score += 10; // Edge/Chrome cloud voices
+            if (/google/.test(name)) score += 8;
+            if (/microsoft/.test(name) && !/desktop/.test(name)) score += 6;
+            if (/siri|samantha|ava|allison/.test(name)) score += 8; // Apple voices
+
+            // Penalize known robotic/low-quality engines.
+            if (/espeak|compact|pico|robot/.test(name)) score -= 15;
+
+            if (v.default) score += 2; // mild tiebreaker
+
+            if (score > bestScore) {
+                bestScore = score;
+                best = v;
+            }
+        }
+        return best;
     }
 
     async play(text) {

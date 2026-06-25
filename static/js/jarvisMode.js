@@ -224,7 +224,14 @@ function _renderAiText(text) {
 function _onChatMutation() {
   const container = document.getElementById('chat-history');
   if (!container) return;
-  const all = container.querySelectorAll('.msg-ai');
+  // Excludes chat.js's transient "agent-thinking-dots" spinner bubble (shown
+  // between tool-call rounds — see _showThinkingSpinner in chat.js). It's a
+  // real .msg-ai element with placeholder label text ("Thinking", a tool
+  // name, etc.), so without this filter it gets mirrored into the transcript
+  // as if it were Jarvis's actual reply, flickering in and out on every tool
+  // round. Tool calls/reasoning should run invisibly here; only genuine
+  // reply text should reach the voice transcript.
+  const all = container.querySelectorAll('.msg-ai:not(.agent-thinking-dots)');
   if (!all.length) return;
   const last = all[all.length - 1];
   const body = last.querySelector('.body');

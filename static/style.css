@@ -35712,41 +35712,67 @@ body.theme-frosted .modal {
   text-shadow: 0 0 10px color-mix(in srgb, var(--jarvis-color, var(--color-accent)) 35%, transparent);
 }
 
+/* Console/log panel — styled like a terminal readout to match the HUD's
+   grid+glow language rather than a generic chat bubble list. */
 .jarvis-transcript {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   max-height: 32vh;
   overflow-y: auto;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 22%, transparent);
+  border-radius: 8px;
+  background:
+    linear-gradient(color-mix(in srgb, var(--color-accent) 5%, transparent) 1px, transparent 1px) 0 0 / 100% 20px,
+    color-mix(in srgb, #000 35%, transparent);
+  box-shadow: inset 0 0 24px color-mix(in srgb, var(--color-accent) 10%, transparent);
   scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-accent) 50%, transparent) transparent;
 }
+.jarvis-transcript::-webkit-scrollbar { width: 6px; }
+.jarvis-transcript::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  border-radius: 3px;
+}
+.jarvis-transcript::-webkit-scrollbar-track { background: transparent; }
+
 .jarvis-line {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border-left: 2px solid transparent;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
   background: color-mix(in srgb, var(--color-accent) 4%, transparent);
-  backdrop-filter: blur(2px);
+  font-family: 'Fira Code', ui-monospace, 'SFMono-Regular', monospace;
   animation: jarvis-line-in 0.2s ease;
 }
 .jarvis-line-who {
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  opacity: 0.6;
+  opacity: 0.75;
 }
-.jarvis-line-you { border-left-color: color-mix(in srgb, var(--color-recording) 70%, transparent); }
+/* Bracket the speaker tag in CSS rather than duplicating markup —
+   jarvisMode.js only ever sets the plain "You" / "Jarvis" text node. */
+.jarvis-line-who::before { content: "["; opacity: 0.6; }
+.jarvis-line-who::after { content: "]"; opacity: 0.6; }
+.jarvis-line-you {
+  border-color: color-mix(in srgb, var(--color-recording) 35%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-recording) 12%, transparent);
+}
 .jarvis-line-you .jarvis-line-who { color: var(--color-recording); }
-.jarvis-line-jarvis { border-left-color: color-mix(in srgb, var(--green) 70%, transparent); }
+.jarvis-line-jarvis {
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--green) 12%, transparent);
+}
 .jarvis-line-jarvis .jarvis-line-who { color: var(--green); }
 .jarvis-line-text {
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.45;
   color: var(--fg);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 @keyframes jarvis-line-in {
   from { opacity: 0; transform: translateY(4px); }

@@ -36,7 +36,9 @@ let _idleCheckTimer = null;
 let _chatObserver = null;
 let _escHandler = null;
 let _messageInputListener = null;
-let _wakeRec = null; // background SpeechRecognition for wake-word activation
+let _wakeRec = null;    // background SpeechRecognition for wake-word activation
+let _wakeLock = null;   // Screen Wake Lock — keeps display on while Jarvis is open
+let _visibilityHandler = null; // re-acquires wake lock after tab returns to foreground
 
 function _setState(state) {
   _state = state;
@@ -113,6 +115,25 @@ function _stopWakeWord() {
     _wakeRec = null; // null first so onend/onerror don't re-schedule restart
     try { rec.abort(); } catch (_) {}
   }
+}
+
+// Screen Wake Lock — prevents the display sleeping while Jarvis Mode is open.
+// The lock is automatically released by the browser if the page goes to the
+// background; the visibility handler re-acquires it when the page returns.
+async function _acquireWakeLock() {
+  if (!navigator.wakeLock) return;
+  try {
+    _wakeLock = await navigator.wakeLock.request('screen');
+    _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+  } catch (_) { _wakeLock = null; }
+}
+
+function _releaseWakeLock() {
+  if (_visibilityHandler) {
+    document.removeEventListener('visibilitychange', _visibilityHandler);
+    _visibilityHandler = null;
+  }
+  if (_wakeLock) { _wakeLock.release().catch(() => {}); _wakeLock = null; }
 }
 
 // Called by voiceRecorder.js's VAD when silence is detected — auto-submits
@@ -391,6 +412,15 @@ function open() {
   document.addEventListener('keydown', _escHandler);
 
   requestAnimationFrame(() => _overlay.classList.add('jarvis-open'));
+
+  // Keep the screen on for the duration of the Jarvis session. The browser
+  // auto-releases the lock if the page goes to background, so re-acquire it
+  // when visibility returns.
+  _acquireWakeLock();
+  _visibilityHandler = () => {
+    if (document.visibilityState === 'visible' && _open) _acquireWakeLock();
+  };
+  document.addEventListener('visibilitychange', _visibilityHandler);
 }
 
 function close() {
@@ -399,6 +429,7 @@ function close() {
 
   if (voiceRecorderModule.getIsRecording()) voiceRecorderModule.stopRecording();
   _stopWakeWord();
+  _releaseWakeLock();
 
   if (_chatObserver) { _chatObserver.disconnect(); _chatObserver = null; }
   if (_idleCheckTimer) { clearInterval(_idleCheckTimer); _idleCheckTimer = null; }

@@ -40,6 +40,10 @@ let _messageInputListener = null;
 function _setState(state) {
   _state = state;
   if (_orb) _orb.dataset.state = state;
+  // Mirrored onto the overlay too so HUD chrome (status readout, waveform,
+  // backdrop tint) can react to state via CSS attribute selectors without
+  // this module needing to touch each element directly.
+  if (_overlay) _overlay.dataset.state = state;
 }
 
 function _setCaption(text) {
@@ -49,14 +53,31 @@ function _setCaption(text) {
 function _buildOverlay() {
   const overlay = document.createElement('div');
   overlay.className = 'jarvis-overlay';
+  overlay.dataset.state = 'idle';
   overlay.innerHTML = `
+    <div class="jarvis-hud-grid" aria-hidden="true"></div>
+    <div class="jarvis-hud-scanline" aria-hidden="true"></div>
+    <div class="jarvis-hud-corner jarvis-hud-corner-tl" aria-hidden="true"></div>
+    <div class="jarvis-hud-corner jarvis-hud-corner-tr" aria-hidden="true"></div>
+    <div class="jarvis-hud-corner jarvis-hud-corner-bl" aria-hidden="true"></div>
+    <div class="jarvis-hud-corner jarvis-hud-corner-br" aria-hidden="true"></div>
+    <div class="jarvis-hud-header" aria-hidden="true">
+      <span class="jarvis-hud-brand">JARVIS</span>
+      <span class="jarvis-hud-status"><span class="jarvis-hud-dot"></span><span class="jarvis-hud-status-text"></span></span>
+    </div>
     <button type="button" class="close-btn jarvis-close" title="Close Jarvis Mode (Esc)" aria-label="Close Jarvis Mode">&#x2715;</button>
     <div class="jarvis-stage">
-      <button type="button" class="jarvis-orb" data-state="idle" aria-label="Talk to Jarvis">
-        <span class="jarvis-orb-ring jarvis-orb-ring-2"></span>
-        <span class="jarvis-orb-ring jarvis-orb-ring-1"></span>
-        <span class="jarvis-orb-core"></span>
-      </button>
+      <div class="jarvis-orb-wrap">
+        <button type="button" class="jarvis-orb" data-state="idle" aria-label="Talk to Jarvis, click to interrupt while it is thinking or speaking">
+          <span class="jarvis-orb-ring jarvis-orb-ring-2"></span>
+          <span class="jarvis-orb-ring jarvis-orb-ring-1"></span>
+          <span class="jarvis-orb-scan"></span>
+          <span class="jarvis-orb-core"></span>
+        </button>
+        <div class="jarvis-wave" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
       <div class="jarvis-caption"></div>
       <div class="jarvis-transcript"></div>
     </div>

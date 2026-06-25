@@ -206,8 +206,8 @@ function computeAdvancedDefaults(colors) {
     hamburgerColor: colors.fg,
     inputBg: colors.panel,
     inputBorder: colors.border,
-    sendBtnBg: red,
-    sendBtnHover: red,
+    sendBtnBg: null,    // intentionally unset — CSS falls back to --color-accent
+    sendBtnHover: null,
     codeBg: syn.bg,
     codeFg: syn.fg,
     toggleActive: red,
@@ -281,7 +281,8 @@ export function applyColors(colors) {
   const adv = colors.advanced || {};
   const defaults = computeAdvancedDefaults(colors);
   for (const { key, css } of ADV_KEYS) {
-    s.setProperty(css, adv[key] || defaults[key]);
+    const val = adv[key] || defaults[key];
+    if (val) s.setProperty(css, val);
   }
 
   // Update favicon to match theme accent color

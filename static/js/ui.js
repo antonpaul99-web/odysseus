@@ -20,6 +20,8 @@ let _lastPointerClientY = null;
 // Smooth scroll state
 let _scrollRafId = null;
 let _scrollBox = null;
+let _scrollInterruptSetup = false;
+let _touchStartY = 0;
 
 function _isTextEditingTarget(target) {
   const el = target && target.nodeType === 1 ? target : target?.parentElement;
@@ -444,11 +446,35 @@ export function showError(msg) {
  * Smooth-scroll chat history to bottom using rAF lerp.
  * Throttled during streaming so it doesn't fight user scrolling.
  */
+// Wire up once: wheel/touch-up disables auto-scroll; reaching near-bottom re-enables it.
+function _setupScrollInterrupt(box) {
+  if (_scrollInterruptSetup) return;
+  _scrollInterruptSetup = true;
+
+  box.addEventListener('wheel', (e) => {
+    if (e.deltaY < 0) setAutoScroll(false);
+  }, { passive: true });
+
+  box.addEventListener('touchstart', (e) => {
+    _touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  box.addEventListener('touchmove', (e) => {
+    if (e.touches[0].clientY > _touchStartY) setAutoScroll(false);
+  }, { passive: true });
+
+  // Re-enable when user scrolls back to within 50px of the bottom.
+  box.addEventListener('scroll', () => {
+    if (box.scrollHeight - box.scrollTop - box.clientHeight < 50) setAutoScroll(true);
+  }, { passive: true });
+}
+
 let _scrollThrottleTimer = null;
 export function scrollHistory() {
   if (!autoScrollEnabled) return;
   if (!_scrollBox) {
     _scrollBox = document.getElementById('chat-history');
+    if (_scrollBox) _setupScrollInterrupt(_scrollBox);
   }
   // Throttle: only start a new scroll animation every 500ms
   if (_scrollThrottleTimer) return;

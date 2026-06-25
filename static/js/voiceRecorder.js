@@ -148,7 +148,7 @@ function insertTranscription(text, showToast) {
 /**
  * Start voice recording
  */
-export function startRecording(onFileCreated, showToast, showError) {
+export function startRecording(onFileCreated, showToast, showError, onSilence) {
   // Check for secure context (getUserMedia requires HTTPS or localhost)
   if (!window.isSecureContext) {
     if (showError) showError('Microphone requires HTTPS. Use a reverse proxy with SSL or access via localhost.');
@@ -174,7 +174,48 @@ export function startRecording(onFileCreated, showToast, showError) {
         }
       };
 
+      // VAD: silence detection on the same stream MediaRecorder is using.
+      // Uses a Web Audio AnalyserNode — no extra getUserMedia call needed.
+      // Fires onSilence() after _VAD_SILENCE_MS ms of near-silence, then
+      // the caller (jarvisMode.js) auto-stops the recording.
+      let _vadCtx = null;
+      let _vadTimer = null;
+      let _vadSilenceStart = null;
+      const _VAD_SILENCE_MS = 1800;
+      const _VAD_POLL_MS = 150;
+      const _VAD_THRESHOLD = 3; // mean abs deviation from 128; < this = silence
+
+      if (onSilence) {
+        try {
+          _vadCtx = new (window.AudioContext || window.webkitAudioContext)();
+          _vadCtx.resume().catch(() => {});
+          const src = _vadCtx.createMediaStreamSource(stream);
+          const analyser = _vadCtx.createAnalyser();
+          analyser.fftSize = 512;
+          src.connect(analyser);
+          const buf = new Uint8Array(analyser.fftSize);
+          _vadTimer = setInterval(() => {
+            if (!isRecording) { clearInterval(_vadTimer); _vadTimer = null; return; }
+            analyser.getByteTimeDomainData(buf);
+            let sum = 0;
+            for (let i = 0; i < buf.length; i++) sum += Math.abs(buf[i] - 128);
+            const avg = sum / buf.length;
+            if (avg < _VAD_THRESHOLD) {
+              if (!_vadSilenceStart) _vadSilenceStart = Date.now();
+              else if (Date.now() - _vadSilenceStart > _VAD_SILENCE_MS) {
+                clearInterval(_vadTimer); _vadTimer = null;
+                onSilence();
+              }
+            } else {
+              _vadSilenceStart = null;
+            }
+          }, _VAD_POLL_MS);
+        } catch (_) { /* VAD unavailable — fall back to manual tap */ }
+      }
+
       mediaRecorder.onstop = async () => {
+        if (_vadTimer) { clearInterval(_vadTimer); _vadTimer = null; }
+        if (_vadCtx) { try { _vadCtx.close(); } catch (_) {} _vadCtx = null; }
         stream.getTracks().forEach(track => track.stop());
 
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });

@@ -36,6 +36,7 @@ let _idleCheckTimer = null;
 let _chatObserver = null;
 let _escHandler = null;
 let _messageInputListener = null;
+let _wakeRec = null; // background SpeechRecognition for wake-word activation
 
 function _setState(state) {
   _state = state;
@@ -44,6 +45,85 @@ function _setState(state) {
   // backdrop tint) can react to state via CSS attribute selectors without
   // this module needing to touch each element directly.
   if (_overlay) _overlay.dataset.state = state;
+  // Wake word runs in every state except "listening" (mic is active then and
+  // the wake-word recogniser would be capturing the user's real utterance).
+  if (state === 'listening') {
+    _stopWakeWord();
+  } else {
+    _startWakeWord();
+  }
+}
+
+function _setIdleCaption() {
+  const hasSR = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  _setCaption(hasSR ? 'Say "Jarvis" or tap the orb.' : 'Click the orb and speak.');
+}
+
+// Wake-word listener — runs a background SpeechRecognition session during any
+// non-listening state so the user can say "Jarvis" to start a turn (or
+// barge-in while it's speaking/thinking) without touching the orb.
+function _startWakeWord() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR || !_open || _wakeRec) return;
+  try {
+    const rec = new SR();
+    _wakeRec = rec;
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+
+    rec.onresult = (e) => {
+      if (!_open) return;
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const text = e.results[i][0].transcript.toLowerCase().trim();
+        if (!text.includes('jarvis')) continue;
+        _stopWakeWord();
+        // Barge-in if currently generating or speaking
+        if (_state === 'thinking' || _state === 'speaking') {
+          if (window.aiTTSManager) window.aiTTSManager.stop();
+          if (_idleCheckTimer) { clearInterval(_idleCheckTimer); _idleCheckTimer = null; }
+          _sendCurrentInput();
+        }
+        _startListening();
+        return;
+      }
+    };
+
+    rec.onerror = () => {
+      if (_wakeRec === rec) _wakeRec = null;
+      // Auto-restart after errors (e.g. temporary mic conflicts) while open
+      if (_open && _state !== 'listening') setTimeout(_startWakeWord, 2000);
+    };
+
+    rec.onend = () => {
+      if (_wakeRec === rec) _wakeRec = null;
+      // Restart only if not already restarted and we're still in a wake-needing state
+      if (_open && !_wakeRec && _state !== 'listening') setTimeout(_startWakeWord, 500);
+    };
+
+    rec.start();
+  } catch (_) {
+    _wakeRec = null;
+  }
+}
+
+function _stopWakeWord() {
+  if (_wakeRec) {
+    const rec = _wakeRec;
+    _wakeRec = null; // null first so onend/onerror don't re-schedule restart
+    try { rec.abort(); } catch (_) {}
+  }
+}
+
+// Called by voiceRecorder.js's VAD when silence is detected — auto-submits
+// the recording so the user doesn't have to tap the orb a second time.
+function _onVADSilence() {
+  if (_state !== 'listening') return;
+  if (!voiceRecorderModule.getIsRecording()) return;
+  _setState('thinking');
+  _setCaption('Transcribing…');
+  _awaitingTranscript = true;
+  voiceRecorderModule.stopRecording();
 }
 
 function _setCaption(text) {
@@ -122,7 +202,7 @@ function _onMessageInput() {
   const text = (input && input.value || '').trim();
   if (!text) {
     _setState('idle');
-    _setCaption('Click the orb and speak.');
+    _setIdleCaption();
     return;
   }
   _appendTranscriptLine('you', text);
@@ -167,7 +247,7 @@ function _startListening() {
   _setState('listening');
   _setCaption('Listening…');
   _awaitingTranscript = false;
-  voiceRecorderModule.startRecording(_onVoiceFileFallback, _onVoiceToast, _onVoiceError);
+  voiceRecorderModule.startRecording(_onVoiceFileFallback, _onVoiceToast, _onVoiceError, _onVADSilence);
 }
 
 function _onOrbClick() {
@@ -260,7 +340,7 @@ function _scheduleIdleWhenSettled() {
       _idleCheckTimer = null;
       if (_state !== 'listening') {
         _setState('idle');
-        _setCaption('Click the orb and speak.');
+        _setIdleCaption();
       }
     }
   }, 250);
@@ -279,7 +359,7 @@ function open() {
   _lastAiText = '';
 
   _setState('idle');
-  _setCaption('Click the orb and speak.');
+  _setIdleCaption();
 
   _orb.addEventListener('click', _onOrbClick);
   _overlay.querySelector('.jarvis-close').addEventListener('click', close);
@@ -318,6 +398,7 @@ function close() {
   _open = false;
 
   if (voiceRecorderModule.getIsRecording()) voiceRecorderModule.stopRecording();
+  _stopWakeWord();
 
   if (_chatObserver) { _chatObserver.disconnect(); _chatObserver = null; }
   if (_idleCheckTimer) { clearInterval(_idleCheckTimer); _idleCheckTimer = null; }

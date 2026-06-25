@@ -35408,44 +35408,153 @@ body.theme-frosted .modal {
   .doc-email-richbody.doc-font-m { font-size: 16px !important; }
 }
 /* ============================================ */
-/* Jarvis Mode — full-screen voice-first view   */
+/* Jarvis Mode — full-screen voice-first HUD    */
 /* ============================================ */
+/* Always renders as a dark sci-fi HUD regardless of the site's light/dark
+   theme setting — an immersive voice console reads better with a fixed
+   identity than one that flips to a white background in light mode. */
 
 .jarvis-overlay {
   position: fixed;
   inset: 0;
   z-index: 10050;
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--color-accent) 12%, #060809) 0%, #05070a 62%),
+    #05070a;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.25s ease;
+  overflow: hidden;
+  transition: opacity 0.3s ease;
+  font-family: 'Fira Code', ui-monospace, 'SFMono-Regular', monospace;
 }
 .jarvis-overlay.jarvis-open {
   opacity: 1;
 }
+/* Shared state color, set here (not just on .jarvis-orb) so HUD chrome
+   outside the orb's own subtree — the status dot, the caption glow — can
+   reference var(--jarvis-color) too. Custom properties only inherit down
+   the DOM tree, and those elements are siblings of the orb, not descendants. */
+.jarvis-overlay { --jarvis-color: var(--color-accent); }
+.jarvis-overlay[data-state="listening"] { --jarvis-color: var(--color-recording); }
+.jarvis-overlay[data-state="thinking"] { --jarvis-color: var(--warn); }
+.jarvis-overlay[data-state="speaking"] { --jarvis-color: var(--green); }
+
+/* Decorative HUD backdrop: faint grid fading toward the edges + a slow
+   scanline sweep. Pure CSS, no JS cost, sells the "voice console" feel. */
+.jarvis-hud-grid {
+  position: absolute;
+  inset: -2px;
+  pointer-events: none;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-accent) 16%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 16%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(circle at 50% 42%, black 0%, transparent 72%);
+  mask-image: radial-gradient(circle at 50% 42%, black 0%, transparent 72%);
+  opacity: 0.5;
+}
+.jarvis-hud-scanline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -2px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-accent) 65%, transparent), transparent);
+  opacity: 0.7;
+  pointer-events: none;
+  animation: jarvis-scan-move 7s linear infinite;
+}
+@keyframes jarvis-scan-move {
+  0% { top: -2px; }
+  100% { top: 100%; }
+}
+
+/* Corner brackets — viewport-frame accent, like a targeting reticle */
+.jarvis-hud-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  opacity: 0.5;
+  pointer-events: none;
+  animation: jarvis-corner-breathe 4s ease-in-out infinite;
+}
+.jarvis-hud-corner-tl { top: 18px; left: 18px; border-right: none; border-bottom: none; }
+.jarvis-hud-corner-tr { top: 18px; right: 18px; border-left: none; border-bottom: none; }
+.jarvis-hud-corner-bl { bottom: 18px; left: 18px; border-right: none; border-top: none; }
+.jarvis-hud-corner-br { bottom: 18px; right: 18px; border-left: none; border-top: none; }
+@keyframes jarvis-corner-breathe {
+  0%, 100% { opacity: 0.32; }
+  50% { opacity: 0.7; }
+}
+
+.jarvis-hud-header {
+  position: absolute;
+  top: 20px;
+  left: 56px;
+  right: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.jarvis-hud-brand {
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  font-weight: 600;
+  color: var(--color-accent);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 60%, transparent);
+}
+.jarvis-hud-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: color-mix(in srgb, var(--fg) 70%, transparent);
+}
+.jarvis-hud-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--jarvis-color, var(--color-accent));
+  box-shadow: 0 0 8px var(--jarvis-color, var(--color-accent));
+  animation: jarvis-pulse-fast 1.6s ease-in-out infinite;
+}
+/* State label text is pure CSS content keyed off the state mirrored onto
+   the overlay's [data-state] — keeps jarvisMode.js from having to own a
+   second copy of the same state->label mapping. */
+.jarvis-hud-status-text::after { content: "STANDBY"; }
+.jarvis-overlay[data-state="listening"] .jarvis-hud-status-text::after { content: "LISTENING"; }
+.jarvis-overlay[data-state="thinking"] .jarvis-hud-status-text::after { content: "PROCESSING"; }
+.jarvis-overlay[data-state="speaking"] .jarvis-hud-status-text::after { content: "RESPONDING"; }
+
 .jarvis-close {
   position: absolute;
-  top: 16px;
+  top: 14px;
   right: 16px;
-  background: none;
-  border: none;
+  z-index: 2;
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
   color: var(--fg);
-  opacity: 0.6;
+  opacity: 0.75;
   cursor: pointer;
-  font-size: 16px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+  font-size: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: opacity 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 .jarvis-close:hover {
   opacity: 1;
-  background: color-mix(in srgb, var(--fg) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent) 65%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
 }
 
 .jarvis-stage {
@@ -35455,6 +35564,15 @@ body.theme-frosted .modal {
   gap: 28px;
   max-width: min(640px, 90vw);
   padding: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.jarvis-orb-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
 }
 
 .jarvis-orb {
@@ -35471,24 +35589,46 @@ body.theme-frosted .modal {
   flex-shrink: 0;
 }
 .jarvis-orb-core,
-.jarvis-orb-ring {
+.jarvis-orb-ring,
+.jarvis-orb-scan {
   grid-area: 1 / 1;
   border-radius: 50%;
 }
 .jarvis-orb-core {
-  width: 96px;
-  height: 96px;
-  background: radial-gradient(circle at 35% 30%,
-    color-mix(in srgb, var(--jarvis-color) 90%, white 10%),
-    var(--jarvis-color) 70%);
-  box-shadow: 0 0 40px color-mix(in srgb, var(--jarvis-color) 55%, transparent);
+  width: 92px;
+  height: 92px;
+  z-index: 2;
+  background: radial-gradient(circle at 32% 28%,
+    color-mix(in srgb, var(--jarvis-color) 92%, white 12%),
+    var(--jarvis-color) 65%,
+    color-mix(in srgb, var(--jarvis-color) 70%, black 25%) 100%);
+  box-shadow:
+    0 0 12px color-mix(in srgb, var(--jarvis-color) 80%, transparent),
+    0 0 48px color-mix(in srgb, var(--jarvis-color) 55%, transparent),
+    0 0 96px color-mix(in srgb, var(--jarvis-color) 28%, transparent);
   animation: jarvis-breathe 3s ease-in-out infinite;
   transition: background 0.4s ease, box-shadow 0.4s ease;
 }
+/* Arc-reactor-style scanning ring inside the orb — a conic-gradient arc
+   spun continuously, speeding up per state for a "working" cue. */
+.jarvis-orb-scan {
+  width: 132px;
+  height: 132px;
+  z-index: 1;
+  background: conic-gradient(from 0deg,
+    transparent 0deg,
+    color-mix(in srgb, var(--jarvis-color) 75%, transparent) 35deg,
+    transparent 70deg,
+    transparent 360deg);
+  opacity: 0.7;
+  animation: jarvis-spin 3.4s linear infinite;
+  transition: background 0.4s ease;
+}
 .jarvis-orb-ring {
-  width: 160px;
-  height: 160px;
-  border: 1.5px solid var(--jarvis-color);
+  width: 168px;
+  height: 168px;
+  z-index: 0;
+  border: 1px solid color-mix(in srgb, var(--jarvis-color) 70%, transparent);
   opacity: 0;
   transition: border-color 0.4s ease;
 }
@@ -35497,9 +35637,13 @@ body.theme-frosted .modal {
   height: 220px;
 }
 
-/* idle — slow breathing core, rings hidden */
+/* idle — slow breathing core, faint slow scan, outer rings hidden */
 .jarvis-orb[data-state="idle"] .jarvis-orb-core {
   animation: jarvis-breathe 3s ease-in-out infinite;
+}
+.jarvis-orb[data-state="idle"] .jarvis-orb-scan {
+  animation-duration: 6s;
+  opacity: 0.35;
 }
 
 /* listening — faster pulse + outward ripple rings, recording-red tint */
@@ -35515,8 +35659,14 @@ body.theme-frosted .modal {
 .jarvis-orb[data-state="listening"] .jarvis-orb-ring-2 {
   animation-delay: 0.5s;
 }
+.jarvis-orb[data-state="listening"] .jarvis-orb-scan {
+  animation-duration: 1.6s;
+}
 
-/* thinking — neutral rotating ring, core idle-pulsing */
+/* thinking — amber tint, scan ring spins fast while it works */
+.jarvis-orb[data-state="thinking"] {
+  --jarvis-color: var(--warn);
+}
 .jarvis-orb[data-state="thinking"] .jarvis-orb-core {
   animation: jarvis-breathe 1.4s ease-in-out infinite;
 }
@@ -35525,8 +35675,13 @@ body.theme-frosted .modal {
   border-style: dashed;
   animation: jarvis-spin 2.2s linear infinite;
 }
+.jarvis-orb[data-state="thinking"] .jarvis-orb-scan {
+  animation-duration: 0.9s;
+  opacity: 0.9;
+}
 
-/* speaking — rhythmic pulse, success-green tint */
+/* speaking — rhythmic pulse, success-green tint. Click the orb any time in
+   this state (or "thinking") to interrupt — see jarvisMode.js _onOrbClick. */
 .jarvis-orb[data-state="speaking"] {
   --jarvis-color: var(--green);
 }
@@ -35536,6 +35691,9 @@ body.theme-frosted .modal {
 .jarvis-orb[data-state="speaking"] .jarvis-orb-ring {
   opacity: 0.5;
   animation: jarvis-pulse-fast 0.7s ease-in-out infinite;
+}
+.jarvis-orb[data-state="speaking"] .jarvis-orb-scan {
+  animation-duration: 1.2s;
 }
 
 @keyframes jarvis-breathe {
@@ -35554,40 +35712,115 @@ body.theme-frosted .modal {
   to { transform: rotate(360deg); }
 }
 
+/* Equalizer-style waveform bars under the orb. Decorative motion cue keyed
+   off state, not real mic/TTS amplitude (the orb states aren't audio-driven
+   either — see the note above _setState in jarvisMode.js). */
+.jarvis-wave {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+}
+.jarvis-wave span {
+  width: 3px;
+  height: 6px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-accent) 50%, transparent);
+  opacity: 0.35;
+  transition: background 0.4s ease, opacity 0.3s ease;
+}
+.jarvis-overlay[data-state="listening"] .jarvis-wave span {
+  background: color-mix(in srgb, var(--color-recording) 75%, transparent);
+  opacity: 0.9;
+  animation: jarvis-wave-bounce 0.9s ease-in-out infinite;
+}
+.jarvis-overlay[data-state="speaking"] .jarvis-wave span {
+  background: color-mix(in srgb, var(--green) 75%, transparent);
+  opacity: 0.9;
+  animation: jarvis-wave-bounce 0.7s ease-in-out infinite;
+}
+.jarvis-wave span:nth-child(1) { animation-delay: 0s; }
+.jarvis-wave span:nth-child(2) { animation-delay: 0.08s; }
+.jarvis-wave span:nth-child(3) { animation-delay: 0.16s; }
+.jarvis-wave span:nth-child(4) { animation-delay: 0.24s; }
+.jarvis-wave span:nth-child(5) { animation-delay: 0.16s; }
+.jarvis-wave span:nth-child(6) { animation-delay: 0.08s; }
+.jarvis-wave span:nth-child(7) { animation-delay: 0s; }
+@keyframes jarvis-wave-bounce {
+  0%, 100% { height: 6px; }
+  50% { height: 20px; }
+}
+
 .jarvis-caption {
   min-height: 1.4em;
   color: var(--fg);
-  opacity: 0.65;
-  font-size: 14px;
+  opacity: 0.7;
+  font-size: 13px;
+  letter-spacing: 0.04em;
   text-align: center;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--jarvis-color, var(--color-accent)) 35%, transparent);
 }
 
+/* Console/log panel — styled like a terminal readout to match the HUD's
+   grid+glow language rather than a generic chat bubble list. */
 .jarvis-transcript {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   max-height: 32vh;
   overflow-y: auto;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 22%, transparent);
+  border-radius: 8px;
+  background:
+    linear-gradient(color-mix(in srgb, var(--color-accent) 5%, transparent) 1px, transparent 1px) 0 0 / 100% 20px,
+    color-mix(in srgb, #000 35%, transparent);
+  box-shadow: inset 0 0 24px color-mix(in srgb, var(--color-accent) 10%, transparent);
   scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-accent) 50%, transparent) transparent;
 }
+.jarvis-transcript::-webkit-scrollbar { width: 6px; }
+.jarvis-transcript::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  border-radius: 3px;
+}
+.jarvis-transcript::-webkit-scrollbar-track { background: transparent; }
+
 .jarvis-line {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--color-accent) 4%, transparent);
+  font-family: 'Fira Code', ui-monospace, 'SFMono-Regular', monospace;
   animation: jarvis-line-in 0.2s ease;
 }
 .jarvis-line-who {
-  font-size: 11px;
-  letter-spacing: 0.04em;
+  font-size: 10px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  opacity: 0.5;
+  opacity: 0.75;
+}
+/* Bracket the speaker tag in CSS rather than duplicating markup —
+   jarvisMode.js only ever sets the plain "You" / "Jarvis" text node. */
+.jarvis-line-who::before { content: "["; opacity: 0.6; }
+.jarvis-line-who::after { content: "]"; opacity: 0.6; }
+.jarvis-line-you {
+  border-color: color-mix(in srgb, var(--color-recording) 35%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-recording) 12%, transparent);
 }
 .jarvis-line-you .jarvis-line-who { color: var(--color-recording); }
+.jarvis-line-jarvis {
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--green) 12%, transparent);
+}
 .jarvis-line-jarvis .jarvis-line-who { color: var(--green); }
 .jarvis-line-text {
-  font-size: 17px;
-  line-height: 1.4;
+  font-size: 15px;
+  line-height: 1.45;
   color: var(--fg);
 }
 @keyframes jarvis-line-in {
@@ -35597,35 +35830,43 @@ body.theme-frosted .modal {
 
 .jarvis-fallback-form {
   position: absolute;
-  bottom: 24px;
+  bottom: 26px;
   left: 50%;
   transform: translateX(-50%);
   width: min(420px, 80vw);
-  opacity: 0.5;
+  opacity: 0.55;
   transition: opacity 0.2s ease;
+  z-index: 1;
 }
 .jarvis-fallback-form:focus-within {
   opacity: 1;
 }
 .jarvis-fallback-input {
   width: 100%;
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, var(--border));
   border-radius: 20px;
   color: var(--fg);
-  padding: 8px 16px;
+  padding: 9px 16px;
   font-size: 13px;
+  letter-spacing: 0.02em;
   text-align: center;
   outline: none;
+  backdrop-filter: blur(6px);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .jarvis-fallback-input:focus {
   border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 @media (max-width: 600px) {
   .jarvis-orb { width: 160px; height: 160px; }
-  .jarvis-orb-core { width: 72px; height: 72px; }
-  .jarvis-orb-ring { width: 116px; height: 116px; }
+  .jarvis-orb-core { width: 70px; height: 70px; }
+  .jarvis-orb-scan { width: 100px; height: 100px; }
+  .jarvis-orb-ring { width: 124px; height: 124px; }
   .jarvis-orb-ring-2 { width: 160px; height: 160px; }
   .jarvis-line-text { font-size: 15px; }
+  .jarvis-hud-header { left: 48px; right: 56px; }
+  .jarvis-hud-brand { font-size: 10px; }
 }
